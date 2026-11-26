@@ -1,0 +1,337 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Olymp Zeus Slots</title>
+<style>
+  
+/* Вращение барабанов */
+.reel {
+  overflow: hidden;
+  position: relative;
+}
+
+.reel.spinning .symbol {
+  animation: reelRoll 0.12s linear infinite;
+  filter: blur(2px);
+  box-shadow: 0 0 12px #36baff;
+}
+
+@keyframes reelRoll {
+  0% { transform: translateY(-12px); }
+  50% { transform: translateY(12px); }
+  100% { transform: translateY(-12px); }
+}
+
+/* Молнии Зевса */
+.game {
+  position: relative;
+  overflow: hidden;
+}
+
+body.spinning .game {
+  box-shadow: 0 0 25px #36baff, 0 0 55px #e6b64e;
+}
+
+body.spinning .game::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #8ceaff;
+  opacity: 0;
+  clip-path: polygon(65% 0, 53% 35%, 68% 35%, 38% 100%, 48% 53%, 34% 53%);
+  animation: zeusLightning 0.35s steps(2, end) infinite;
+}
+
+@keyframes zeusLightning {
+  0%, 45%, 100% { opacity: 0; }
+  50%, 55% { opacity: 0.75; }
+}
+
+/* Вспышка при выигрыше */
+.symbol.win {
+  animation: goldWin 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes goldWin {
+  from { box-shadow: 0 0 5px #ffd700; }
+  to { box-shadow: 0 0 25px #fff3a0, 0 0 40px #ffae00; }
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;padding:12px;color:#ffe7a0;text-align:center;
+  font-family:Georgia,serif;
+  background:radial-gradient(ellipse at top,#174c83,#07152d 65%,#030914);
+}
+.game{max-width:620px;margin:auto;border:4px solid #d99b32;
+  border-radius:20px;padding:12px;background:linear-gradient(#142d50,#07152b);
+  box-shadow:0 0 25px #d99b32}
+h1{font-size:clamp(30px,8vw,48px);margin:5px;color:#ffd66b;
+  text-shadow:2px 3px 4px #6d3000}
+.subtitle{color:#fff0bd;margin-bottom:12px}
+.info{display:flex;justify-content:space-around;gap:8px;flex-wrap:wrap}
+.panel{background:#101b32;border:2px solid #c58b2b;border-radius:12px;
+  padding:9px;min-width:105px;margin:4px}
+.panel b{display:block;color:#ffdc76;font-size:19px;margin-top:5px}
+.reels{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;
+  margin:14px 0;padding:7px;background:#a66a1d;border-radius:12px}
+.reel{display:grid;grid-template-rows:repeat(3,1fr);gap:5px}
+.symbol{height:clamp(65px,18vw,100px);display:flex;align-items:center;
+  justify-content:center;background:linear-gradient(145deg,#173b68,#07152c);
+  border:2px solid #e6b64e;border-radius:8px;
+  font-size:clamp(27px,8vw,43px);text-shadow:0 2px 5px #000}
+.symbol.win{background:linear-gradient(#fff0a0,#c87912);
+  box-shadow:0 0 15px #ffe36b}
+.controls{display:flex;justify-content:center;align-items:center;
+  flex-wrap:wrap;gap:8px;margin:12px 0}
+button{border:2px solid #ffd36b;border-radius:12px;padding:12px 15px;
+  background:linear-gradient(#f4c34d,#9d5209);color:#251300;
+  font-size:17px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5}
+#spin{font-size:23px;padding:17px 25px;background:linear-gradient(#7cff45,#168b19)}
+#message{min-height:44px;font-size:18px;color:#ffe58a;padding:8px}
+.small{font-size:12px;color:#d4c39d}
+</style>
+</head>
+<body>
+<div class="game">
+  <h1>⚡ OLYMP ZEUS ⚡</h1>
+  <div class="subtitle">ЗОЛОТОЙ ОЛИМП · 50 ЛИНИЙ</div>
+
+  <div class="info">
+    <div class="panel">БАЛАНС<b id="balance">1000</b></div>
+    <div class="panel">СТАВКА<b id="bet">10</b></div>
+    <div class="panel">ЛИНИИ<b>50</b></div>
+  </div>
+
+  <div class="reels" id="reels"></div>
+
+  <div class="controls">
+    <button id="minus">−</button>
+    <button id="plus">+</button>
+    <button id="spin">⚡ КРУТИТЬ</button>
+  </div>
+
+  <div class="controls">
+    <button id="auto">АВТОИГРА</button>
+    <button id="bonus">БОНУС: <span id="free">0</span></button>
+  </div>
+
+  <div id="message">Пусть Зевс принесёт удачу!</div>
+  <div class="small">Игра использует только виртуальные кредиты. Без денежных ставок.</div>
+</div>
+
+<script>
+const symbols = [
+  {icon:"⚡",name:"Молния",pay:8},
+  {icon:"👑",name:"Корона",pay:7},
+  {icon:"💎",name:"Алмаз",pay:6},
+  {icon:"🏛️",name:"Храм",pay:5},
+  {icon:"🔱",name:"Трезубец",pay:4},
+  {icon:"🛡️",name:"Шлем",pay:3},
+  {icon:"🍇",name:"Виноград",pay:2},
+  {icon:"🃏",name:"WILD",pay:0},
+  {icon:"⭐",name:"SCATTER",pay:0}
+];
+
+let balance = 1000;
+let bet = 10;
+let freeSpins = 0;
+let busy = false;
+let auto = false;
+let board = [];
+
+const $ = id => document.getElementById(id);
+
+function update() {
+  $("balance").textContent = balance;
+  $("bet").textContent = bet;
+  $("free").textContent = freeSpins;
+}
+
+function makeBoard() {
+  board = Array.from({length:5}, () =>
+    Array.from({length:3}, () => Math.floor(Math.random() * symbols.length))
+  );
+  draw();
+}
+
+function draw(winners = []) {
+  const root = $("reels");
+  root.innerHTML = "";
+
+  for (let c = 0; c < 5; c++) {
+    const reel = document.createElement("div");
+    reel.className = "reel";
+
+    for (let r = 0; r < 3; r++) {
+      const cell = document.createElement("div");
+      const position = r * 5 + c;
+      cell.className = "symbol" + (winners.includes(position) ? " win" : "");
+      cell.textContent = symbols[board[c][r]].icon;
+      reel.appendChild(cell);
+    }
+    root.appendChild(reel);
+  }
+}
+
+// 50 различных комбинаций рядов на пяти барабанах.
+const paylines = Array.from({length:50}, (_, n) => {
+  let x = n;
+  const line = [];
+  for (let c = 0; c < 5; c++) {
+    line.push(x % 3);
+    x = Math.floor(x / 3);
+  }
+  return line;
+});
+
+function calculateWins() {
+  let total = 0;
+  const winners = [];
+
+  for (const line of paylines) {
+    let target = -1;
+    let count = 0;
+    const cells = [];
+
+    for (let c = 0; c < 5; c++) {
+      const symbol = board[c][line[c]];
+
+      // SCATTER не участвует в обычной выигрышной линии.
+      if (symbol === 8) break;
+
+      // Первый обычный символ задаёт символ комбинации.
+      if (target === -1 && symbol !== 7) target = symbol;
+
+      if (symbol === 7 || symbol === target) {
+        count++;
+        cells.push(line[c] * 5 + c);
+      } else {
+        break;
+      }
+    }
+
+    if (count >= 3 && target >= 0) {
+      const multiplier = count === 3 ? 1 : count === 4 ? 2 : 5;
+      total += bet * symbols[target].pay * multiplier;
+      winners.push(...cells);
+    }
+  }
+
+  return {total, winners:[...new Set(winners)]};
+}
+
+function finishSpin() {
+  const scatters = board.flat().filter(s => s === 8).length;
+  const result = calculateWins();
+
+  if (result.total > 0) {
+    balance += result.total;
+    $("message").textContent =
+      "✨ ЗЕВС ДАРУЕТ ВЫИГРЫШ: " + result.total + " виртуальных кредитов!";
+    draw(result.winners);
+  } else {
+    $("message").textContent = "Попробуй ещё раз! Зевс ждёт тебя.";
+  }
+
+  if (scatters >= 3) {
+    freeSpins += 10;
+    $("message").textContent += " ⭐ БОНУС! +10 бесплатных вращений!";
+  }
+
+  document.body.classList.remove("spinning");
+  update();
+  busy = false;
+  $("spin").disabled = false;
+
+  if (auto && (freeSpins > 0 || balance >= bet)) {
+    setTimeout(spin, 900);
+  } else {
+    auto = false;
+    $("auto").textContent = "АВТОИГРА";
+  }
+}
+
+function spin() {
+  if (busy) return;
+
+  if (freeSpins === 0 && balance < bet) {
+    $("message").textContent = "Недостаточно виртуальных кредитов!";
+    auto = false;
+    $("auto").textContent = "АВТОИГРА";
+    return;
+  }
+
+  busy = true;
+  $("spin").disabled = true;
+
+  if (freeSpins > 0) freeSpins--;
+  else balance -= bet;
+
+  update();
+  $("message").textContent = "⚡ ЗЕВС ЗАПУСКАЕТ БАРАБАНЫ!";
+
+  makeBoard();
+  document.body.classList.add("spinning");
+
+  const reels = Array.from(document.querySelectorAll(".reel"));
+  reels.forEach(reel => reel.classList.add("spinning"));
+
+  const animation = setInterval(() => {
+    document.querySelectorAll(".reel .symbol").forEach(cell => {
+      cell.textContent = symbols[Math.floor(Math.random() * symbols.length)].icon;
+    });
+  }, 80);
+
+  // Сначала все барабаны быстро меняют символы, затем останавливаются по очереди.
+  setTimeout(() => {
+    clearInterval(animation);
+
+    reels.forEach((reel, col) => {
+      setTimeout(() => {
+        const cells = reel.querySelectorAll(".symbol");
+        for (let row = 0; row < 3; row++) {
+          cells[row].textContent = symbols[board[col][row]].icon;
+        }
+        reel.classList.remove("spinning");
+
+        if (col === 4) finishSpin();
+      }, col * 250);
+    });
+  }, 1100);
+}
+
+$("spin").onclick = spin;
+
+$("minus").onclick = () => {
+  if (!busy) bet = Math.max(1, bet - 5);
+  update();
+};
+
+$("plus").onclick = () => {
+  if (!busy) bet = Math.min(100, bet + 5);
+  update();
+};
+
+$("auto").onclick = () => {
+  auto = !auto;
+  $("auto").textContent = auto ? "ОСТАНОВИТЬ" : "АВТОИГРА";
+  if (auto && !busy) spin();
+};
+
+$("bonus").onclick = () => {
+  $("message").textContent = freeSpins > 0
+    ? "У тебя " + freeSpins + " бесплатных вращений! Нажми КРУТИТЬ."
+    : "Бонус активируется при выпадении 3 или более SCATTER.";
+};
+
+makeBoard();
+update();
+</script>
+</body>
+</html>
